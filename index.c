@@ -3,9 +3,11 @@
 #include <locale.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <windows.h>
 
 #define TAM 50
 #define VETOR 10
+#define SENHA_ADM "adm123"
 
 struct conta {
     char nome[TAM];
@@ -34,6 +36,7 @@ void login(Conta contas[], int *id, int totalContas) {
         if (strcmp(aux_nome, contas[i].nome) == 0 && strcmp(aux_senha, contas[i].senha) == 0) {
             printf("Login realizado com sucesso!\n");
             printf("Bem-vindo, %s!\n", contas[i].nome);
+            printf("Seu saldo atual é: R$ %.2f\t", contas[i].saldo);
             *id = i;
             sleep(2);
             system("cls");
@@ -48,8 +51,11 @@ void login(Conta contas[], int *id, int totalContas) {
 }
 
 void cadastrarConta(Conta contas[], int *totalContas) {
+    system("cls");
     if (*totalContas >= VETOR) {
         printf("Limite de contas atingido!\n");
+        sleep(2);
+        system("cls");
         return;
     }
 
@@ -84,6 +90,35 @@ void cadastrarConta(Conta contas[], int *totalContas) {
     system("cls");
 }
 
+void salvarContas(struct conta contas[], int totalContas) {
+    FILE *banco = fopen("contas.txt", "w");
+    if (banco == NULL) {
+        printf("Erro ao abrir o arquivo!\n");
+        return;
+    }
+
+    for (int i = 0; i < totalContas; i++) {
+        fprintf(banco, "%s\n", contas[i].nome);
+        fprintf(banco, "%s\n", contas[i].senha);
+        fprintf(banco, "%f\n", contas[i].saldo);
+    }
+    fclose(banco);
+}
+
+void carregarContas(struct conta contas[], int *totalContas) {
+    FILE *banco = fopen("contas.txt", "r");
+    if (banco == NULL) {
+        return;
+    }
+
+    while (fscanf(banco, "%s\n", contas[*totalContas].nome) != EOF) {
+        fscanf(banco, "%s\n", contas[*totalContas].senha);
+        fscanf(banco, "%f\n", &contas[*totalContas].saldo);
+        (*totalContas)++;
+    }
+    fclose(banco);
+}
+
 void exibirMenu(Conta contas[], int id) {
     int opcao;
 
@@ -95,6 +130,7 @@ void exibirMenu(Conta contas[], int id) {
         printf("Escolha uma opção: ");
         scanf("%d", &opcao);
         getchar();
+        system("cls");
 
         switch (opcao) {
             case 1: {
@@ -107,7 +143,8 @@ void exibirMenu(Conta contas[], int id) {
                     printf("Valor inválido!\n");
                 } else {
                     contas[id].saldo += valorDeposito;
-                    printf("Depósito realizado com sucesso! Seu novo saldo é: R$ %.2f\n", contas[id].saldo);
+                    printf("Depósito realizado com sucesso! Novo saldo: R$ %.2f\n", contas[id].saldo);
+                    salvarContas(contas, VETOR);
                 }
                 break;
             }
@@ -124,6 +161,7 @@ void exibirMenu(Conta contas[], int id) {
                 }
 
                 float valorSaque;
+                printf("Seu saldo atual é: R$ %.2f\n\n\n\n", contas[id].saldo);
                 printf("Digite o valor a ser sacado: ");
                 scanf("%f", &valorSaque);
                 getchar();
@@ -131,10 +169,11 @@ void exibirMenu(Conta contas[], int id) {
                 if (valorSaque <= 0) {
                     printf("Valor inválido!\n");
                 } else if (valorSaque > contas[id].saldo) {
-                    printf("Saldo insuficiente! Seu saldo atual é: R$ %.2f\n", contas[id].saldo);
+                    printf("Saldo insuficiente! Saldo atual: R$ %.2f\n", contas[id].saldo);
                 } else {
                     contas[id].saldo -= valorSaque;
-                    printf("Saque realizado com sucesso! Seu novo saldo é: R$ %.2f\n", contas[id].saldo);
+                    printf("Saque realizado com sucesso! Novo saldo: R$ %.2f\n", contas[id].saldo);
+                    salvarContas(contas, VETOR);
                 }
                 break;
             }
@@ -156,17 +195,52 @@ void exibirMenu(Conta contas[], int id) {
     } while (1);
 }
 
+void zerarBancoDeDados(int *totalContas) {
+    char senha[TAM];
+
+    printf("----- Área Administrativa -----\n");
+    printf("Digite a senha de administrador: ");
+    fgets(senha, TAM, stdin);
+    senha[strcspn(senha, "\n")] = '\0';
+
+    if (strcmp(senha, SENHA_ADM) != 0) {
+        printf("Senha incorreta! Acesso negado.\n");
+        sleep(2);
+        system("cls");
+        return;
+    }
+
+    FILE *banco = fopen("contas.txt", "w");
+    if (banco == NULL) {
+        printf("Erro ao abrir o arquivo!\n");
+        return;
+    }
+    fclose(banco);
+
+    *totalContas = 0;
+
+    printf("Banco de dados zerado com sucesso!\n");
+    sleep(2);
+    system("cls");
+}
+
 int main() {
+    SetConsoleOutputCP(65001);
     setlocale(LC_ALL, "Portuguese");
 
     Conta contas[VETOR];
     int totalContas = 0;
     int id;
+    carregarContas(contas, &totalContas);
 
     int opcao;
     while (1) {
         printf("---------- Bem-vindo ao Dbank ----------\n");
-        printf("O que deseja?\n1 - Login\n2 - Cadastrar conta\n3 - Sair\n");
+        printf("O que deseja?\n");
+        printf("1 - Login\n");
+        printf("2 - Cadastrar conta\n");
+        printf("3 - Área do administrador\n");
+        printf("4 - Sair\n");
         printf("Escolha: ");
         scanf("%d", &opcao);
         getchar();
@@ -182,14 +256,22 @@ int main() {
 
             case 2:
                 cadastrarConta(contas, &totalContas);
+                salvarContas(contas, totalContas);
                 break;
 
             case 3:
+                zerarBancoDeDados(&totalContas);
+                break;
+
+            case 4:
                 printf("Saindo do programa...\n");
+                sleep(1);
                 return 0;
 
             default:
                 printf("Opção inválida! Tente novamente.\n");
+                sleep(2);
+                system("cls");
         }
     }
 
