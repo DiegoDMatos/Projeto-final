@@ -77,6 +77,7 @@ void cadastrarConta(Conta contas[], int *totalContas) {
 
         if (strcmp(contas[*totalContas].senha, aux) != 0) {
             printf("As senhas não correspondem! Tente novamente.\n");
+            system("cls");
         }
     } while (strcmp(contas[*totalContas].senha, aux) != 0);
 
